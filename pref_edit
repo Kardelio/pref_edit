@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+infoColor="\033[37;44m"
+importantColor="\033[37;45m"
+errorColor="\033[37;41m"
+otherColor="\033[30;43m"
+otherColorAndText="\033[37;94m"
+reset="\033[0m"
+package=$1
+#preferenceFile="${package}_preferences.xml"
+preferenceFile="${package}.sharedprefs.xml"
+#preferenceFileAlt="${package}_preferences.xml"
+if [ $# -eq 0 ]; then
+    fzf_installed=$(which fzf)
+    if [[ -z ${fzf_installed} ]]; then
+        echo -e "${errorColor}FZF is NOT installed so you can not use the interactive package picker${reset}"
+        echo -e "${errorColor}Install FZF to enable this feature${reset}"
+        exit 1
+    else
+        packToUse=$(adb shell pm list package -3 | fzf | cut -d':' -f2)
+        echo -e "Using package: ${importantColor}$packToUse${reset}"
+        package="$packToUse"
+        #preferenceFile="${package}_preferences.xml"
+        preferenceFile="${package}.sharedprefs.xml"
+    fi
+fi
+specificPref=""
+echo "Type in the name of the SPECIFIC shared preference KEY to view (leave blank for the standard) [$preferenceFile]"
+read specificPref
+
+echo -e "\033[33m"
+if [[ ! -z "$specificPref" ]]; then
+    preferenceFile="${specificPref}.xml"
+fi
+adb shell run-as "$package" cat "/data/data/$package/shared_prefs/${preferenceFile}" || exit 1
+echo -e "${reset}"
+last="$?"
+if [[ "$last" != "0" ]]; then
+    exit 1
+fi
+
+echo -e "${infoColor}Would you like to edit a shared preference? [ y / n ]${reset}"
+read -sn 1 ans
+if [[ "$ans" == "y" ]] || [[ "$ans" == "Y" ]]; then
+
+    line=$(adb exec-out run-as "$package" cat "/data/data/$package/shared_prefs/${preferenceFile}" | sed '/^\<\?/d' | sed '/^\<map/d' | sed '/^\<\//d'  | fzf)
+    line=$(echo "$line" | sed -e 's/^[[:space:]]*//') 
+
+    if [[ "$line" == "<string"* ]]; then 
+        #NOTE: Is a  string
+        pref=$(echo "$line" | tr -s ' ' | cut -d'>' -f1)
+        echo "$pref"
+        echo ""
+        echo -e "${otherColor}Changing: ${pref} -> ${otherColorAndText}${line}${reset}"
+        echo ""
+        echo -e "${infoColor}Type the new value to put between the CHEVRONS...${reset}"
+        read newval
+        adb exec-out run-as "$package" sed -i "s/${pref}\>.*\<\/string\>/${pref}\>${newval}\<\/string\>/g" "/data/data/$package/shared_prefs/${preferenceFile}"
+    else
+        #NOTE: Not a string (int, boolean etc...)
+        pref=$(echo "$line" | tr -s ' ' | cut -d' ' -f2)
+        echo ""
+        echo -e "${otherColor}Changing: ${pref} -> ${otherColorAndText}${line}${reset}"
+        echo ""
+        echo -e "${infoColor}Type the new value to put between the VALUE speech marks...${reset}"
+        read newval
+        adb exec-out run-as "$package" sed -i "s/${pref}\ value\=\".*\"/${pref}\ value\=\"${newval}\"/g" "/data/data/$package/shared_prefs/${preferenceFile}"
+        echo ""
+    fi
+    echo -e "${infoColor}New written preferences...${reset}"
+    echo -e "\033[33m"
+    adb exec-out run-as "$package" cat "/data/data/$package/shared_prefs/${preferenceFile}"
+    echo -e "${reset}"
+fi
