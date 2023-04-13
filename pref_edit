@@ -7,6 +7,8 @@ otherColorAndText="\033[37;94m"
 reset="\033[0m"
 package=$1
 #preferenceFile="${package}_preferences.xml"
+#TODO need to make this changeable
+#NOTE to user: Please change this to the filename you wish to edit
 preferenceFile="${package}.sharedprefs.xml"
 #preferenceFileAlt="${package}_preferences.xml"
 if [ $# -eq 0 ]; then
@@ -24,6 +26,7 @@ if [ $# -eq 0 ]; then
     fi
 fi
 specificPref=""
+#TODO: need to change this to allow user to select from list of pref files to edit...
 echo "Type in the name of the SPECIFIC shared preference KEY to view (leave blank for the standard) [$preferenceFile]"
 read specificPref
 
