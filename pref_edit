@@ -26,13 +26,12 @@ if [ $# -eq 0 ]; then
     fi
 fi
 specificPref=""
-#TODO: need to change this to allow user to select from list of pref files to edit...
-echo "Type in the name of the SPECIFIC shared preference KEY to view (leave blank for the standard) [$preferenceFile]"
-read specificPref
+useThisPrefFile=$(adb exec-out run-as "$package" ls shared_prefs -1 | fzf)
+specificPref="$useThisPrefFile"
 
 echo -e "\033[33m"
 if [[ ! -z "$specificPref" ]]; then
-    preferenceFile="${specificPref}.xml"
+    preferenceFile="${specificPref}"
 fi
 adb shell run-as "$package" cat "/data/data/$package/shared_prefs/${preferenceFile}" || exit 1
 echo -e "${reset}"
